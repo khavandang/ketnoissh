@@ -1,33 +1,39 @@
-rm -rf ngrok ngrok.zip ngrok.sh > /dev/null 2>&1
-wget -O ng.sh https://bit.ly/GCngr0k > /dev/null 2>&1
-chmod +x ng.sh
-./ng.sh
-clear
-echo "======================="
-echo choose ngrok region
-echo "======================="
-echo "us - United States (Ohio)"
-echo "eu - Europe (Frankfurt)"
-echo "ap - Asia/Pacific (Singapore)"
-echo "au - Australia (Sydney)"
-echo "sa - South America (Sao Paulo)"
-echo "jp - Japan (Tokyo)"
-echo "in - India (Mumbai)"
-read -p "choose ngrok region: " CRP
-./ngrok tcp --region $CRP 22 &>/dev/null &
-echo "======================="
-echo Updating Please Wait
-echo "======================="
-sudo apt update > /dev/null 2>&1
-sudo apt install openssh-server > /dev/null 2>&1
-mkdir -p /var/run/sshd
-echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
-echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
-echo "LD_LIBRARY_PATH=/usr/lib64-nvidia" >> /root/.bashrc
-echo "export LD_LIBRARY_PATH" >> /root/.bashrc
-sudo service ssh start
-echo "===================================="
-curl --silent --show-error http://127.0.0.1:4040/api/tunnels | sed -nE 's/.*public_url":"tcp:..([^"]*).*/\1/p'
-echo create root password Toabdzsv3@@
-passwd 
-echo "===================================="
+#@title Get SSH To Run ! 
+import random, string, urllib.request, json, getpass
+ 
+#Generate root password
+password = ''.join(random.choice(string.ascii_letters + string.digits) for i in range(20))
+ 
+#Download ngrok
+! wget -q -c -nc https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+! unzip -qq -n ngrok-stable-linux-amd64.zip
+ 
+#Setup sshd
+! apt-get install -qq -o=Dpkg::Use-Pty=0 openssh-server pwgen > /dev/null
+ 
+#Set root password
+! echo root:$password | chpasswd
+! mkdir -p /var/run/sshd
+! echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+! echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+! echo "LD_LIBRARY_PATH=/usr/lib64-nvidia" >> /root/.bashrc
+! echo "export LD_LIBRARY_PATH" >> /root/.bashrc
+ 
+#Run sshd
+get_ipython().system_raw('/usr/sbin/sshd -D &')
+ 
+#Ask token
+print("Copy authtoken from https://dashboard.ngrok.com/auth")
+authtoken = getpass.getpass()
+ 
+#Create tunnel
+get_ipython().system_raw('./ngrok authtoken $authtoken && ./ngrok tcp 22 &')
+ 
+#Get public address and print connect command
+with urllib.request.urlopen('http://localhost:4040/api/tunnels') as response:
+  data = json.loads(response.read().decode())
+  (host, port) = data['tunnels'][0]['public_url'][6:].split(':')
+  print(f'SSH command: ssh -p{port} root@{host}')
+ 
+#Print root password
+print(f'Root password: {password}')
